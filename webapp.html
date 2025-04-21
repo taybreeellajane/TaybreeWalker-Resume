@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Guess the Japanese City</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"/>
+  <style>
+   body {
+  font-family: 'Arial', sans-serif;
+  background: #993838 url('https://i.imgur.com/g0A0rlW.png') repeat top center; /* Cherry blossom background */
+  background-size: 250px auto;
+  color: #fff;
+  text-align: center;
+  padding: 2rem;
+}
+    h1 {
+      color: #090303;
+      font-size: 2.5rem;
+      margin-bottom: 1rem;
+    }
+
+    #map {
+      width: 80%;
+      height: 400px;
+      margin: 20px auto;
+      border: 2px solid #090606;
+      border-radius: 10px;
+    }
+
+    input, button {
+      padding: 0.5rem 1rem;
+      font-size: 1rem;
+      margin: 0.5rem;
+      border: none;
+      border-radius: 5px;
+    }
+
+    input {
+      width: 220px;
+    }
+
+    button {
+      background-color: #fff;
+      color: #be5c5c;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    #guesses {
+      margin-top: 2rem;
+    }
+
+    .guess {
+      margin: 0.3rem auto;
+      padding: 0.5rem;
+      border-radius: 5px;
+      width: 250px;
+      color: white;
+      font-weight: bold;
+    }
+
+    .hot {
+      background-color: #581304;
+    }
+
+    .warm {
+      background-color: #db1515;
+    }
+
+    .cold {
+      background-color: #ee6e6e;
+    }
+
+    .correct {
+      background-color: #e9edeb;
+    }
+
+    .fun-images {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 20px;
+      margin-top: 2rem;
+    }
+
+    .fun-images img {
+      height: 100px;
+      width: auto;
+      border-radius: 10px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Guess the Japanese City</h1>
+  <p>Type a Japanese city name and see how close you are to the secret city!</p>
+  <input type="text" id="cityInput" placeholder="Enter a Japanese city..." />
+  <button onclick="makeGuess()">Guess</button>
+
+  <div id="guesses"></div>
+  <div id="map"></div>
+
+
+
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
+  <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+  <script>
+    const cities = [
+      { name: "Tokyo", lat: 35.6895, lon: 139.6917 },
+      { name: "Osaka", lat: 34.6937, lon: 135.5023 },
+      { name: "Kyoto", lat: 35.0116, lon: 135.7681 },
+      { name: "Sapporo", lat: 43.0618, lon: 141.3545 },
+      { name: "Fukuoka", lat: 33.5902, lon: 130.4017 },
+      { name: "Naha", lat: 26.2124, lon: 127.6809 },
+      { name: "Nagoya", lat: 35.1815, lon: 136.9066 },
+      { name: "Sendai", lat: 38.2682, lon: 140.8694 },
+      { name: "Hiroshima", lat: 34.3853, lon: 132.4553 },
+      { name: "Kagoshima", lat: 31.5966, lon: 130.5571 }
+    ];
+
+    let targetCity = cities[Math.floor(Math.random() * cities.length)];
+    const guessesDiv = document.getElementById("guesses");
+
+    const map = L.map('map').setView([35.0, 137.0], 5);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: 'Map data © OpenStreetMap contributors',
+      detectRetina: true,
+      maxZoom: 18,
+      language: 'en'
+    }).addTo(map);
+
+    function makeGuess() {
+      const input = document.getElementById("cityInput");
+      const guess = input.value.trim();
+      const city = cities.find(c => c.name.toLowerCase() === guess.toLowerCase());
+
+      if (!city) {
+        alert("City not recognized. Please enter a major Japanese city.");
+        return;
+      }
+
+      const distance = getDistance(city.lat, city.lon, targetCity.lat, targetCity.lon);
+      const div = document.createElement("div");
+      div.classList.add("guess");
+
+      let color = '';
+      if (city.name === targetCity.name) {
+        div.classList.add("correct");
+        div.innerText = `${city.name} - Correct! You guessed the secret city! 🎉`;
+        shootConfetti();
+        color = 'green';
+      } else if (distance < 100) {
+        div.classList.add("hot");
+        div.innerText = `${city.name} - Very Close (${Math.round(distance)} km away)`;
+        color = 'red';
+      } else if (distance < 300) {
+        div.classList.add("warm");
+        div.innerText = `${city.name} - Warm (${Math.round(distance)} km away)`;
+        color = 'orange';
+      } else {
+        div.classList.add("cold");
+        div.innerText = `${city.name} - Cold (${Math.round(distance)} km away)`;
+        color = 'blue';
+      }
+
+      guessesDiv.appendChild(div);
+
+      L.circleMarker([city.lat, city.lon], {
+        radius: 8,
+        fillColor: color,
+        color: "#333",
+        weight: 1,
+        opacity: 1,
+        fillOpacity: 0.8
+      }).addTo(map).bindPopup(`${city.name}`);
+
+      input.value = "";
+    }
+
+    function getDistance(lat1, lon1, lat2, lon2) {
+      const R = 6371;
+      const dLat = deg2rad(lat2 - lat1);
+      const dLon = deg2rad(lon2 - lon1);
+      const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) *
+        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      return R * c;
+    }
+
+    function deg2rad(deg) {
+      return deg * (Math.PI / 180);
+    }
+
+    function shootConfetti() {
+      confetti({
+        particleCount: 150,
+        spread: 70,
+        origin: { y: 0.6 }
+      });
+    }
+  </script>
+  <a href="scratch.html">Go to Scratch Page</a>
+  <br>
+  <br>
+  <a href="index.html">Go to Home Page</a>
+
+</body>
+</html>
